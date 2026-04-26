@@ -2,9 +2,9 @@
   "name": "automation-door-sdk-ts",
   "version": "1.0.0",
   "type": "module",
-  "main": "src/index.js",
-  "module": "src/index.mjs",
-  "types": "src/index.d.ts",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
     "url": "https://github.com/tomhua/automation-door-sdk-ts.git"
