@@ -1,0 +1,70 @@
+[
+  {
+    "id": "1",
+    "category": "door",
+    "open": "9A 01 04 11 8E",
+    "close": "9B 01 04 11 8F",
+    "sensors": []
+  },
+  {
+    "id": "2",
+    "category": "door",
+    "open": "9A 01 03 11 89",
+    "close": "9B 01 03 11 88",
+    "sensors": []
+  },
+  {
+    "id": "3",
+    "category": "door",
+    "open": "9A 01 02 11 88",
+    "close": "9B 01 02 11 89",
+    "sensors": []
+  },
+  {
+    "id": "4",
+    "category": "door",
+    "open": "9A 01 01 11 8B",
+    "close": "9B 01 01 11 8A",
+    "sensors": []
+  },
+  {
+    "id": "5",
+    "category": "lamp",
+    "open": "9A 02 04 11 8D",
+    "close": "9B 02 04 11 8C",
+    "color": "green"
+  },
+  {
+    "id": "6",
+    "category": "lamp",
+    "open": "9A 02 05 11 8C",
+    "close": "9B 02 05 11 8D",
+    "color": "yellow"
+  },
+  {
+    "id": "7",
+    "category": "lamp",
+    "open": "9A 02 03 11 8A",
+    "close": "9B 02 03 11 8B",
+    "color": "green"
+  },
+  {
+    "id": "8",
+    "category": "lamp",
+    "open": "9A 02 02 11 8B",
+    "close": "9B 02 02 11 8A",
+    "color": "yellow"
+  },
+  {
+    "id": "9",
+    "category": "robot",
+    "open": "9C 02 FF 61",
+    "close": "9C 02 FB 65"
+  },
+  {
+    "id": "10",
+    "category": "sound",
+    "open": "",
+    "close": ""
+  }
+]
