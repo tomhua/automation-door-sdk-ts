@@ -12,5 +12,7 @@ export default defineConfig({
     // 压缩代码
     minify: false,
     // 打包后保留源码映射
-    sourcemap: false
+    sourcemap: false,
+    // 输出目录
+    outDir: 'dist'
 });
