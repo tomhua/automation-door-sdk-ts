@@ -3,6 +3,40 @@ import { DriveSerialPort } from '../types/drive_types';
 import * as commands from '../config/command.json';
 
 /**
+ * 日志工具类
+ */
+class Logger {
+  private static timestamp(): string {
+    const now = new Date();
+    return now.toISOString().replace('T', ' ').substring(0, 23);
+  }
+
+  static info(message: string, ...args: unknown[]): void {
+    console.log(`[${Logger.timestamp()}] [INFO] ${message}`, ...args);
+  }
+
+  static warn(message: string, ...args: unknown[]): void {
+    console.warn(`[${Logger.timestamp()}] [WARN] ${message}`, ...args);
+  }
+
+  static error(message: string, ...args: unknown[]): void {
+    console.error(`[${Logger.timestamp()}] [ERROR] ${message}`, ...args);
+  }
+
+  static debug(message: string, ...args: unknown[]): void {
+    console.debug(`[${Logger.timestamp()}] [DEBUG] ${message}`, ...args);
+  }
+
+  static command(device: string, action: string, command: string): void {
+    console.log(`[${Logger.timestamp()}] [CMD] ${device} ${action}: ${command}`);
+  }
+
+  static step(step: string): void {
+    console.log(`[${Logger.timestamp()}] [STEP] ${step}`);
+  }
+}
+
+/**
  * 命令项接口，定义了设备的命令结构
  */
 export interface CommandItem {
@@ -43,6 +77,7 @@ export class SerialPortDriver {
   constructor(config: DriveSerialPort) {
     this.config = config;
     this.writeInterval = config.serialWriteTimeInterval || 100;
+    Logger.info(`SerialPortDriver initialized with config: ${JSON.stringify(config)}`);
   }
 
   /**
@@ -50,10 +85,13 @@ export class SerialPortDriver {
    * @returns Promise
    */
   async open(): Promise<void> {
-    // 检查串口是否已打开
     if (this.isOpen) {
+      Logger.warn('Serial port is already open, skipping open');
       return;
     }
+
+    Logger.info(`Opening serial port: ${this.config.doorCOM} at ${this.config.doorBaudRate} baud`);
+
     return new Promise((resolve, reject) => {
       this.port = new SerialPort({
         path: this.config.doorCOM,
@@ -62,10 +100,12 @@ export class SerialPortDriver {
 
       this.port.open((err) => {
         if (err) {
+          Logger.error(`Failed to open serial port: ${err.message}`);
           reject(err);
           return;
         }
         this.isOpen = true;
+        Logger.info(`Serial port ${this.config.doorCOM} opened successfully`);
         resolve();
       });
     });
@@ -76,10 +116,13 @@ export class SerialPortDriver {
    * @returns Promise
    */
   async close(): Promise<void> {
-    // 检查串口是否已关闭
     if (!this.isOpen) {
+      Logger.warn('Serial port is already closed, skipping close');
       return;
     }
+
+    Logger.info(`Closing serial port: ${this.config.doorCOM}`);
+
     return new Promise((resolve, reject) => {
       if (!this.port || !this.isOpen) {
         resolve();
@@ -88,11 +131,13 @@ export class SerialPortDriver {
 
       this.port.close((err) => {
         if (err) {
+          Logger.error(`Failed to close serial port: ${err.message}`);
           reject(err);
           return;
         }
         this.isOpen = false;
         this.port = null;
+        Logger.info(`Serial port ${this.config.doorCOM} closed successfully`);
         resolve();
       });
     });
@@ -111,20 +156,28 @@ export class SerialPortDriver {
   /**
    * 发送命令到设备
    * @param hexCommand 十六进制命令字符串
+   * @param deviceName 设备名称
+   * @param action 操作类型
    * @returns Promise
    */
-  private async writeCommand(hexCommand: string): Promise<void> {
+  private async writeCommand(hexCommand: string, deviceName: string = 'Unknown', action: string = 'execute'): Promise<void> {
     if (!this.port || !this.isOpen) {
-      throw new Error('Serial port is not open');
+      const errorMsg = 'Serial port is not open';
+      Logger.error(errorMsg);
+      throw new Error(errorMsg);
     }
+
+    Logger.command(deviceName, action, hexCommand);
 
     return new Promise((resolve, reject) => {
       const buffer = this.hexStringToBuffer(hexCommand);
       this.port!.write(buffer, (err) => {
         if (err) {
+          Logger.error(`Failed to write command: ${err.message}`);
           reject(err);
           return;
         }
+        Logger.debug(`Command sent successfully, waiting ${this.writeInterval}ms before next command`);
         setTimeout(resolve, this.writeInterval);
       });
     });
@@ -158,14 +211,21 @@ export class SerialPortDriver {
    * 向多个设备发送命令
    * @param items 设备命令列表
    * @param commandType 命令类型（open或close）
+   * @param deviceType 设备类型描述
    * @returns Promise
    */
-  private async sendToAll(items: CommandItem[], commandType: 'open' | 'close'): Promise<void> {
+  private async sendToAll(items: CommandItem[], commandType: 'open' | 'close', deviceType: string): Promise<void> {
+    const actionText = commandType === 'open' ? '打开' : '关闭';
+    Logger.info(`Sending ${actionText} command to ${items.length} ${deviceType}(s)`);
+
     const promises = items.map((item: CommandItem) => {
       const cmd = commandType === 'open' ? item.open : item.close;
-      return this.writeCommand(cmd);
+      const deviceName = `${deviceType}-${item.id}`;
+      return this.writeCommand(cmd, deviceName, actionText);
     });
     await Promise.all(promises);
+
+    Logger.info(`Successfully sent ${actionText} command to ${items.length} ${deviceType}(s)`);
   }
 
   /**
@@ -173,65 +233,73 @@ export class SerialPortDriver {
    * @returns Promise
    */
   async openDoors(): Promise<void> {
+    Logger.step('========== 开始执行开门流程 ==========');
+
     await this.open();
 
     const doors = this.getDoors();
     const yellowLamps = this.getYellowLamps();
     const greenLamps = this.getGreenLamps();
 
-    // 四道门同时打开
-    await this.sendToAll(doors, 'open');
+    Logger.step('步骤1: 四道门同时打开');
+    await this.sendToAll(doors, 'open', '门');
 
-    // 打开黄灯
-    await this.sendToAll(yellowLamps, 'open');
+    Logger.step('步骤2: 打开黄灯');
+    await this.sendToAll(yellowLamps, 'open', '黄灯');
 
-    // 等待开关门超时时间
+    Logger.step(`步骤3: 等待开门完成（${this.config.doorTimeout}秒）`);
     await new Promise(resolve => setTimeout(resolve, this.config.doorTimeout * 1000));
 
-    // 关闭黄灯
-    await this.sendToAll(yellowLamps, 'close');
+    Logger.step('步骤4: 关闭黄灯');
+    await this.sendToAll(yellowLamps, 'close', '黄灯');
 
-    // 打开绿灯
-    await this.sendToAll(greenLamps, 'open');
+    Logger.step('步骤5: 打开绿灯（开门完成）');
+    await this.sendToAll(greenLamps, 'open', '绿灯');
 
-    // 等待开关门超时时间
+    Logger.step(`步骤6: 等待绿灯显示（${this.config.doorRedLampTimeout}秒）`);
     await new Promise(resolve => setTimeout(resolve, this.config.doorRedLampTimeout * 1000));
 
-    // 关闭绿灯
-    await this.sendToAll(greenLamps, 'close');
+    Logger.step('步骤7: 关闭绿灯');
+    await this.sendToAll(greenLamps, 'close', '绿灯');
+
+    Logger.step('========== 开门流程执行完成 ==========');
   }
 
   /**
-   * 关门流程：关门->开黄灯->关完成->关黄灯->开绿灯->关绿灯绿灯
+   * 关门流程：关门->开黄灯->关完成->关黄灯->开绿灯->关绿灯
    * @returns Promise
    */
   async closeDoors(): Promise<void> {
+    Logger.step('========== 开始执行关门流程 ==========');
+
     await this.open();
 
     const doors = this.getDoors();
     const yellowLamps = this.getYellowLamps();
     const greenLamps = this.getGreenLamps();
 
-    // 四道门同时关闭
-    await this.sendToAll(doors, 'close');
+    Logger.step('步骤1: 四道门同时关闭');
+    await this.sendToAll(doors, 'close', '门');
 
-    // 打开黄灯
-    await this.sendToAll(yellowLamps, 'open');
+    Logger.step('步骤2: 打开黄灯');
+    await this.sendToAll(yellowLamps, 'open', '黄灯');
 
-    // 等待开关门超时时间
+    Logger.step(`步骤3: 等待关门完成（${this.config.doorTimeout}秒）`);
     await new Promise(resolve => setTimeout(resolve, this.config.doorTimeout * 1000));
 
-    // 关闭黄灯
-    await this.sendToAll(yellowLamps, 'close');
+    Logger.step('步骤4: 关闭黄灯');
+    await this.sendToAll(yellowLamps, 'close', '黄灯');
 
-    // 打开绿灯
-    await this.sendToAll(greenLamps, 'open');
+    Logger.step('步骤5: 打开绿灯（关门完成）');
+    await this.sendToAll(greenLamps, 'open', '绿灯');
 
-    // 等待开关门超时时间
+    Logger.step(`步骤6: 等待绿灯显示（${this.config.doorRedLampTimeout}秒）`);
     await new Promise(resolve => setTimeout(resolve, this.config.doorRedLampTimeout * 1000));
 
-    // 关闭绿灯
-    await this.sendToAll(greenLamps, 'close');
+    Logger.step('步骤7: 关闭绿灯');
+    await this.sendToAll(greenLamps, 'close', '绿灯');
+
+    Logger.step('========== 关门流程执行完成 ==========');
   }
 
   /**
