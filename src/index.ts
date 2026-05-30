@@ -1,10 +1,10 @@
 import { SerialPortDriver } from "./drivers/serialport";
-import type { DriveSerialPort } from "./types/drive_types";
+import {DriveConfig} from "./types/drive_types";
 
 /**
- * 导出DriveSerialPort接口
+ * 导出CommandItem接口
  */
-export type { DriveSerialPort } from "./types/drive_types";
+export type { CommandItem, Logger, DriveConfig } from "./types/drive_types";
 
 /**
  * 导出SerialPortDriver类
@@ -21,9 +21,10 @@ export class AutomationDoorSdk {
   /**
    * 构造函数
    * @param config 串口配置
+   * @param logger
    */
-  constructor(config: DriveSerialPort) {
-    this.driver = new SerialPortDriver(config);
+  constructor(config: DriveConfig) {
+    this.driver = new SerialPortDriver(config, config.logger);
   }
 
   /**

@@ -1,11 +1,18 @@
-import { AutomationDoorSdk, DriveSerialPort } from '../src/index';
+import { AutomationDoorSdk } from '../src';
+import {CommandItem, DriveConfig} from "../src";
+import command from "../src/config/command1.json";
 
-const config: DriveSerialPort = {
-  doorCOM: 'COM3',
-  doorBaudRate: 9600,
-  doorTimeout: 5,
-  doorRedLampTimeout: 3,
-  serialWriteTimeInterval: 100
+const config: DriveConfig = {
+  door: {
+    commands: command as CommandItem[]
+  },
+  serialPort: {
+    doorCOM: 'COM1',
+    doorBaudRate: 9600,
+    doorTimeout: 5,
+    doorRedLampTimeout: 3,
+    serialWriteTimeInterval: 100
+  }
 };
 
 async function runTest() {
